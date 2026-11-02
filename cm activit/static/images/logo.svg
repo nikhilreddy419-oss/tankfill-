@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="dropGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#818cf8" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+  <!-- Outer Gauge Ring -->
+  <circle cx="50" cy="50" r="44" stroke="url(#ringGrad)" stroke-width="4" stroke-dasharray="6 3" stroke-linecap="round" />
+  <!-- Water Droplet with Math Brackets Motif -->
+  <path d="M50 15 C45 30 24 54 24 68 C24 82 35 90 50 90 C65 90 76 82 76 68 C76 54 55 30 50 15 Z" fill="url(#dropGrad)" />
+  <!-- Highlight reflection -->
+  <path d="M38 60 C38 52 45 40 48 35 C46 44 42 58 46 64 C43 64 38 63 38 60 Z" fill="#ffffff" fill-opacity="0.45" />
+  <!-- Math Division / Bisection bisecting line -->
+  <line x1="36" y1="68" x2="64" y2="68" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="50" cy="58" r="3" fill="#ffffff"/>
+  <circle cx="50" cy="78" r="3" fill="#ffffff"/>
+</svg>

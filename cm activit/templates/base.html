@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="TankFill – Water Tank Filling Time Calculator using the Bisection Method. An engineering mini-project for Computational Mathematics Laboratory.">
+  <meta name="author" content="Computational Mathematics Laboratory">
+  <title>{{ title if title else "TankFill – Water Tank Filling Time Calculator" }}</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+
+  <!-- Core Stylesheets -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+
+  <!-- Theme Script in Head to avoid flash of wrong theme -->
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+
+  <!-- External MathJax for LaTeX mathematical formula rendering -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <!-- External Chart.js for scientific visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar" id="mainNavbar">
+    <div class="nav-container">
+      <a href="{{ url_for('home.index') }}" class="brand-logo" id="brandLogo">
+        <div class="brand-icon-wrapper">
+          <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="TankFill Logo" class="brand-icon">
+        </div>
+        <span>{{ APP_SHORT_NAME }}</span>
+        <span class="brand-badge">Bisection Lab</span>
+      </a>
+
+      <!-- Desktop Nav Links -->
+      <ul class="nav-links" id="navLinks">
+        <li>
+          <a href="{{ url_for('home.index') }}" class="nav-link {{ 'active' if request.endpoint == 'home.index' else '' }}">Home</a>
+        </li>
+        <li>
+          <a href="{{ url_for('calculator.calculator') }}" class="nav-link {{ 'active' if request.endpoint == 'calculator.calculator' else '' }}">Calculator</a>
+        </li>
+        <li>
+          <a href="{{ url_for('calculator.result_view') }}" class="nav-link {{ 'active' if request.endpoint == 'calculator.result_view' else '' }}">Results</a>
+        </li>
+        <li>
+          <a href="{{ url_for('home.about') }}" class="nav-link {{ 'active' if request.endpoint == 'home.about' else '' }}">About Bisection</a>
+        </li>
+      </ul>
+
+      <!-- Action items: Theme Toggle & Mobile Menu -->
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle dark/light theme" title="Toggle theme">
+          <!-- Sun Icon (shown in dark mode) -->
+          <svg class="theme-icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <!-- Moon Icon (shown in light mode) -->
+          <svg class="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+
+        <a href="{{ url_for('calculator.calculator') }}" class="btn btn-primary btn-sm no-print">
+          <span>Calculate Now</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </a>
+
+        <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Block -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Global Hydrodynamic Loading Animation Overlay -->
+  <div class="loading-overlay" id="loadingOverlay" role="dialog" aria-modal="true" aria-label="Calculating root using Bisection Method">
+    <div class="hydro-spinner"></div>
+    <div class="loading-text">Bisecting Brackets &amp; Evaluating Roots...</div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Application Footer -->
+  <footer class="app-footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="brand-logo">
+            <div class="brand-icon-wrapper">
+              <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Logo" class="brand-icon">
+            </div>
+            <span>{{ APP_NAME }}</span>
+          </div>
+          <p class="footer-desc">
+            An advanced computational mathematics mini-project engineering platform demonstrating
+            the Bisection numerical method for determining fluid tank filling times under linear and hydrodynamic flow models.
+          </p>
+        </div>
+
+        <div class="footer-links-group">
+          <div>
+            <h4 class="footer-col-title">Navigation</h4>
+            <ul class="footer-link-list">
+              <li><a href="{{ url_for('home.index') }}">Home</a></li>
+              <li><a href="{{ url_for('calculator.calculator') }}">Tank Calculator</a></li>
+              <li><a href="{{ url_for('calculator.result_view') }}">Sample Results</a></li>
+              <li><a href="{{ url_for('home.about') }}">About Bisection Method</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 class="footer-col-title">Laboratory</h4>
+            <ul class="footer-link-list">
+              <li><span>{{ COURSE_NAME }}</span></li>
+              <li><span>Academic Year: {{ ACADEMIC_YEAR }}</span></li>
+              <li><span>Method: Bolzano's Bisection</span></li>
+              <li><span>Algorithm Order: Linear O(2⁻ⁿ)</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; {{ ACADEMIC_YEAR }} {{ APP_SHORT_NAME }} – Engineering Mini Project. Developed for {{ COURSE_NAME }}.</div>
+        <div>Built with Python Flask, Chart.js &amp; Vanilla JavaScript</div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Core Scripts -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% block scripts %}{% endblock %}
+
+</body>
+</html>

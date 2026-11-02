@@ -1,0 +1,656 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Header Section -->
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <h1 style="font-size: 2.1rem; margin-bottom: 0.35rem;">Tank Filling Time Calculator</h1>
+      <p>Configure tank dimensions and inflow parameters to evaluate filling duration using the Bisection Method.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="{{ url_for('home.about') }}" class="btn btn-outline btn-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>View Algorithm Theory</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Presets Toolbar -->
+  <div class="presets-toolbar">
+    <div class="presets-label">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+      </svg>
+      <span>Quick Sample Presets (Click to Load &amp; Simulate)</span>
+    </div>
+    <div class="presets-buttons-container">
+      {% for key, preset in presets.items() %}
+      <button
+        type="button"
+        class="preset-chip {{ 'active' if key == 'residential' else '' }}"
+        data-capacity="{{ preset.capacity }}"
+        data-current="{{ preset.current_level }}"
+        data-target="{{ preset.target_level }}"
+        data-inflow="{{ preset.inflow_rate }}"
+        data-drain="{{ preset.drain_rate }}"
+        data-tolerance="{{ preset.tolerance }}"
+        data-iterations="{{ preset.max_iterations }}"
+        data-model="{{ preset.flow_model }}"
+      >
+        {{ preset.name }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Main Calculator Dashboard Grid -->
+  <div class="dashboard-grid">
+
+    <!-- Left Column: Input Form Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-header-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Hydraulic &amp; Solver Inputs</h3>
+            <div class="card-subtitle">Specify tank parameters for numerical root search</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body">
+        {% if errors and errors.get('general') %}
+        <div class="toast toast-error" style="position: static; margin-bottom: 1.25rem;">
+          <span>⚠️</span> <span>{{ errors.get('general') }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('calculator.calculator') }}" id="tankCalculatorForm" novalidate>
+          <div class="form-grid">
+
+            <!-- 1. Tank Capacity -->
+            <div class="form-group">
+              <label for="capacity" class="form-label">
+                <span>Tank Capacity ($V_{\text{max}}$)</span>
+                <span class="form-label-badge">Required</span>
+              </label>
+              <div class="input-wrapper">
+                <input
+                  type="number"
+                  step="any"
+                  id="capacity"
+                  name="capacity"
+                  class="form-input {{ 'is-invalid' if errors and errors.get('tank_capacity') else '' }}"
+                  value="{{ form_data.capacity if form_data else 1000 }}"
+                  placeholder="e.g. 1000"
+                  required
+                >
+                <span class="input-unit">Litres</span>
+              </div>
+              {% if errors and errors.get('tank_capacity') %}
+              <div class="invalid-feedback">{{ errors.get('tank_capacity') }}</div>
+              {% endif %}
+            </div>
+
+            <!-- 2. Current Water Level -->
+            <div class="form-group">
+              <label for="current_level" class="form-label">
+                <span>Current Water Level ($V_0$)</span>
+                <span class="form-label-badge">Initial</span>
+              </label>
+              <div class="input-wrapper">
+                <input
+                  type="number"
+                  step="any"
+                  id="current_level"
+                  name="current_level"
+                  class="form-input {{ 'is-invalid' if errors and errors.get('current_water_level') else '' }}"
+                  value="{{ form_data.current_level if form_data else 150 }}"
+                  placeholder="e.g. 150"
+                  required
+                >
+                <span class="input-unit">Litres</span>
+              </div>
+              {% if errors and errors.get('current_water_level') %}
+              <div class="invalid-feedback">{{ errors.get('current_water_level') }}</div>
+              {% endif %}
+            </div>
+
+            <!-- 3. Water Inflow Rate -->
+            <div class="form-group">
+              <label for="inflow_rate" class="form-label">
+                <span>Water Inflow Rate ($Q_{\text{in}}$)</span>
+                <span class="form-label-badge">Inflow</span>
+              </label>
+              <div class="input-wrapper">
+                <input
+                  type="number"
+                  step="any"
+                  id="inflow_rate"
+                  name="inflow_rate"
+                  class="form-input {{ 'is-invalid' if errors and errors.get('water_inflow_rate') else '' }}"
+                  value="{{ form_data.inflow_rate if form_data else 25 }}"
+                  placeholder="e.g. 25"
+                  required
+                >
+                <span class="input-unit">L/min</span>
+              </div>
+              {% if errors and errors.get('water_inflow_rate') %}
+              <div class="invalid-feedback">{{ errors.get('water_inflow_rate') }}</div>
+              {% endif %}
+            </div>
+
+            <!-- 4. Target Water Level -->
+            <div class="form-group">
+              <label for="target_level" class="form-label">
+                <span>Target Water Level ($V_{\text{target}}$)</span>
+                <span class="form-label-badge">Target Root</span>
+              </label>
+              <div class="input-wrapper">
+                <input
+                  type="number"
+                  step="any"
+                  id="target_level"
+                  name="target_level"
+                  class="form-input {{ 'is-invalid' if errors and errors.get('target_water_level') else '' }}"
+                  value="{{ form_data.target_level if form_data else 950 }}"
+                  placeholder="e.g. 950"
+                  required
+                >
+                <span class="input-unit">Litres</span>
+              </div>
+              {% if errors and errors.get('target_water_level') %}
+              <div class="invalid-feedback">{{ errors.get('target_water_level') }}</div>
+              {% endif %}
+            </div>
+
+          </div>
+
+          <!-- Advanced Parameters Accordion -->
+          <div class="advanced-accordion">
+            <div class="accordion-header" id="accordionToggle">
+              <span style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span>Advanced Solver &amp; Physical Parameters (Optional)</span>
+              </span>
+              <svg id="accordionChevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+
+            <div class="accordion-body">
+              <div class="form-grid">
+                <!-- Drain Rate -->
+                <div class="form-group">
+                  <label for="drain_rate" class="form-label">
+                    <span>Drain / Leak Outflow ($Q_{\text{out}}$)</span>
+                  </label>
+                  <div class="input-wrapper">
+                    <input
+                      type="number"
+                      step="any"
+                      id="drain_rate"
+                      name="drain_rate"
+                      class="form-input"
+                      value="{{ form_data.drain_rate if form_data else 0.0 }}"
+                      placeholder="0.0"
+                    >
+                    <span class="input-unit">L/min</span>
+                  </div>
+                </div>
+
+                <!-- Convergence Tolerance -->
+                <div class="form-group">
+                  <label for="tolerance" class="form-label">
+                    <span>Convergence Tolerance ($\epsilon$)</span>
+                  </label>
+                  <div class="input-wrapper">
+                    <input
+                      type="number"
+                      step="any"
+                      id="tolerance"
+                      name="tolerance"
+                      class="form-input"
+                      value="{{ form_data.tolerance if form_data else '0.0001' }}"
+                      placeholder="0.0001"
+                    >
+                  </div>
+                </div>
+
+                <!-- Max Iterations -->
+                <div class="form-group">
+                  <label for="max_iterations" class="form-label">
+                    <span>Max Allowed Iterations ($N$)</span>
+                  </label>
+                  <div class="input-wrapper">
+                    <input
+                      type="number"
+                      id="max_iterations"
+                      name="max_iterations"
+                      class="form-input"
+                      value="{{ form_data.max_iterations if form_data else 100 }}"
+                      placeholder="100"
+                    >
+                  </div>
+                </div>
+
+                <!-- Flow Model -->
+                <div class="form-group">
+                  <label for="flow_model" class="form-label">
+                    <span>Hydraulic Flow Model</span>
+                  </label>
+                  <select id="flow_model" name="flow_model" class="form-select">
+                    <option value="linear" {{ 'selected' if form_data and form_data.get('flow_model') == 'linear' else '' }}>
+                      Uniform Inflow (Standard Model)
+                    </option>
+                    <option value="hydrodynamic" {{ 'selected' if form_data and form_data.get('flow_model') == 'hydrodynamic' else '' }}>
+                      Hydrodynamic Dynamic Head Loss (Nonlinear Model)
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Custom Bracket A -->
+                <div class="form-group">
+                  <label for="bracket_a" class="form-label">
+                    <span>Lower Bracket Time ($a$)</span>
+                  </label>
+                  <div class="input-wrapper">
+                    <input
+                      type="number"
+                      step="any"
+                      id="bracket_a"
+                      name="bracket_a"
+                      class="form-input"
+                      value="{{ form_data.bracket_a if form_data and form_data.bracket_a else '' }}"
+                      placeholder="Auto (0.0)"
+                    >
+                    <span class="input-unit">min</span>
+                  </div>
+                </div>
+
+                <!-- Custom Bracket B -->
+                <div class="form-group">
+                  <label for="bracket_b" class="form-label">
+                    <span>Upper Bracket Time ($b$)</span>
+                  </label>
+                  <div class="input-wrapper">
+                    <input
+                      type="number"
+                      step="any"
+                      id="bracket_b"
+                      name="bracket_b"
+                      class="form-input"
+                      value="{{ form_data.bracket_b if form_data and form_data.bracket_b else '' }}"
+                      placeholder="Auto"
+                    >
+                    <span class="input-unit">min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="calculateSubmitBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+              </svg>
+              <span>Calculate Filling Time</span>
+            </button>
+
+            <button type="button" class="btn btn-secondary" id="resetFormBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+              </svg>
+              <span>Reset Inputs</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right Column: 2D Water Tank Visualizer -->
+    <div class="tank-visualizer-card">
+      <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary);">
+          2D Hydro-Simulation
+        </span>
+        <span class="badge badge-pos">Live Preview</span>
+      </div>
+
+      <!-- Water Tank Graphic Shell -->
+      <div class="tank-container-wrapper" id="tankGraphicWrapper">
+        <!-- Inflow Pipe -->
+        <div class="tank-pipe-in"></div>
+        <div class="water-stream"></div>
+
+        <!-- Glass Shell -->
+        <div class="tank-shell">
+          <!-- Animated Water Mass -->
+          <div class="tank-water" id="tankWater" style="height: 35%;">
+            <div class="wave"></div>
+            <div class="wave back"></div>
+            <!-- Bubbles inside water -->
+            <div class="bubble" style="left: 20%; width: 6px; height: 6px; animation-duration: 2.5s;"></div>
+            <div class="bubble" style="left: 55%; width: 8px; height: 8px; animation-duration: 3.2s; animation-delay: 1s;"></div>
+            <div class="bubble" style="left: 75%; width: 5px; height: 5px; animation-duration: 2.1s; animation-delay: 0.5s;"></div>
+          </div>
+
+          <!-- Target Level Indicator Line -->
+          <div class="tank-target-line" id="tankTargetLine" style="bottom: 95%;">
+            <span class="tank-target-badge" id="tankTargetBadge">Target: 950 L (95%)</span>
+          </div>
+        </div>
+
+        <!-- Measurement Scale Markers -->
+        <div class="tank-scale">
+          <div class="scale-mark"><span>100%</span></div>
+          <div class="scale-mark"><span>75%</span></div>
+          <div class="scale-mark"><span>50%</span></div>
+          <div class="scale-mark"><span>25%</span></div>
+          <div class="scale-mark"><span>0%</span></div>
+        </div>
+      </div>
+
+      <!-- Live Readout -->
+      <div class="tank-readout">
+        <span class="tank-readout-value" id="tankPctReadout">95.0%</span>
+        <span class="tank-readout-label" id="tankLitresReadout">950 / 1,000 L</span>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-top: 0.5rem;">
+        Fluid level dynamically rises to the calculated target root upon solver execution.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Dynamic Results Section (Populated via AJAX or Pre-rendered) -->
+  <div id="resultsContainer" style="{{ 'display: block;' if result else 'display: none;' }} margin-top: 3.5rem;">
+    
+    <!-- Results Header with Action Buttons -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+      <div>
+        <span class="badge badge-root" style="margin-bottom: 0.5rem;">Computational Result</span>
+        <h2 style="font-size: 2rem;">Bisection Solution &amp; Analytics</h2>
+        <p id="calcStatusMessage" style="font-size: 0.95rem; color: var(--success); font-weight: 500;">
+          {{ result.status_message if result else '' }}
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;" class="no-print">
+        <button type="button" class="btn btn-outline btn-sm" id="copyTimeBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span>Copy Time</span>
+        </button>
+
+        <form method="POST" action="{{ url_for('calculator.export_csv') }}" style="display: inline;">
+          <input type="hidden" name="capacity" value="{{ result.tank_parameters.capacity if result else 1000 }}">
+          <input type="hidden" name="current_level" value="{{ result.tank_parameters.current_level if result else 150 }}">
+          <input type="hidden" name="target_level" value="{{ result.tank_parameters.target_level if result else 950 }}">
+          <input type="hidden" name="inflow_rate" value="{{ result.tank_parameters.inflow_rate if result else 25 }}">
+          <input type="hidden" name="drain_rate" value="{{ result.tank_parameters.drain_rate if result else 0 }}">
+          <input type="hidden" name="tolerance" value="{{ result.tolerance if result else '0.0001' }}">
+          <input type="hidden" name="max_iterations" value="{{ result.max_iterations if result else 100 }}">
+          <input type="hidden" name="flow_model" value="{{ result.tank_parameters.flow_model if result else 'linear' }}">
+          <button type="submit" class="btn btn-secondary btn-sm" id="exportCsvBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Export CSV</span>
+          </button>
+        </form>
+
+        <button type="button" class="btn btn-primary btn-sm" id="downloadPdfBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9V2h12v7"></path>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+          <span>Download PDF Report</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4 Key Performance Indicators (KPI Cards) -->
+    <div class="kpi-grid">
+      <!-- KPI 1: Estimated Filling Time -->
+      <div class="kpi-card kpi-success">
+        <div class="kpi-header">
+          <span class="kpi-title">Estimated Filling Time</span>
+          <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div class="kpi-value" id="kpiRootTime">
+          {{ "%.4f"|format(result.root_time) if result else '32.0000' }} min
+        </div>
+        <div class="kpi-subtext" id="kpiDuration">
+          {{ result.duration.human_readable if result else '32 mins 0.00 secs' }}
+        </div>
+      </div>
+
+      <!-- KPI 2: Total Iterations -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Number of Iterations</span>
+          <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <div class="kpi-value" id="kpiIters">
+          {{ result.total_iterations if result else '19' }}
+        </div>
+        <div class="kpi-subtext" id="kpiTheoIters">
+          Theory: {{ result.theoretical_iterations if result else '19' }} steps
+        </div>
+      </div>
+
+      <!-- KPI 3: Final Convergence Error -->
+      <div class="kpi-card kpi-warning">
+        <div class="kpi-header">
+          <span class="kpi-title">Final Error ($\epsilon_k$)</span>
+          <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+        </div>
+        <div class="kpi-value" id="kpiError">
+          {{ result.final_error|scientific if result else '7.6294e-05' }}
+        </div>
+        <div class="kpi-subtext" id="kpiTolerance">
+          Target: &lt; {{ result.tolerance|scientific if result else '1.0000e-04' }}
+        </div>
+      </div>
+
+      <!-- KPI 4: Execution Time -->
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-header">
+          <span class="kpi-title">Execution Time</span>
+          <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div class="kpi-value" id="kpiExecTime">
+          {{ result.execution_time_ms if result else '0.450' }} ms
+        </div>
+        <div class="kpi-subtext">CPU benchmark</div>
+      </div>
+    </div>
+
+    <!-- Mathematical Equation Card -->
+    <div class="equation-box">
+      <div class="equation-title">Formulated Hydraulic Root Equation</div>
+      <div class="equation-content" id="equationSubstituted">
+        \[ {{ result.equations.substituted_latex if result else 'f(t) = 150 + 25 t - 950 = 0' }} \]
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
+        Stopping criterion satisfied: \( \epsilon_k = \frac{|b_k - a_k|}{2} < \epsilon \)
+      </div>
+    </div>
+
+    <!-- Scientific Charts Grid (Chart.js) -->
+    <div class="charts-grid">
+      <!-- Chart 1: Water Level vs Time -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-header-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+            </div>
+            <div>
+              <h3 class="card-title">Water Level vs. Time</h3>
+              <div class="card-subtitle">Transient volumetric filling trajectory</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrapper">
+            <canvas id="waterLevelChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart 2: Convergence Error vs Iterations -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-header-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+            </div>
+            <div>
+              <h3 class="card-title">Convergence Error Curve</h3>
+              <div class="card-subtitle">Logarithmic interval decay vs theoretical limit</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrapper">
+            <canvas id="convergenceChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Complete Bisection Iteration Table -->
+    <div class="card table-card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-header-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Bisection Method Iteration Table</h3>
+            <div class="card-subtitle">Every intermediate step computed during root search</div>
+          </div>
+        </div>
+        <span class="badge badge-pos" id="tableRowCountBadge">
+          {{ result.iterations|length if result else 0 }} Iterations
+        </span>
+      </div>
+
+      <div class="table-toolbar">
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+          Formula: \( c_k = \frac{a_k + b_k}{2} \), update based on sign test \( f(a_k) \cdot f(c_k) \).
+        </div>
+        <input
+          type="search"
+          class="table-search-input"
+          id="tableSearchInput"
+          placeholder="Filter iterations or values..."
+          aria-label="Filter iteration table"
+        >
+      </div>
+
+      <div class="table-responsive">
+        <table class="bisection-table" id="iterationTable">
+          <thead>
+            <tr>
+              <th>Step (k)</th>
+              <th>Lower Bound \(a_k\)</th>
+              <th>Upper Bound \(b_k\)</th>
+              <th>Midpoint \(c_k\)</th>
+              <th>\(f(a_k)\)</th>
+              <th>\(f(b_k)\)</th>
+              <th>\(f(c_k)\)</th>
+              <th>Error \(\epsilon_k\)</th>
+              <th>Sign Test</th>
+              <th>Update Action</th>
+            </tr>
+          </thead>
+          <tbody id="iterationTableBody">
+            {% if result and result.iterations %}
+            {% for row in result.iterations %}
+            <tr class="{{ 'row-converged' if loop.last else '' }}">
+              <td><strong>#{{ row.iteration }}</strong></td>
+              <td>{{ "%.6f"|format(row.a) }}</td>
+              <td>{{ "%.6f"|format(row.b) }}</td>
+              <td><strong class="text-primary">{{ "%.6f"|format(row.c) }}</strong></td>
+              <td>{{ "%.5f"|format(row.fa) }}</td>
+              <td>{{ "%.5f"|format(row.fb) }}</td>
+              <td>{{ "%.5f"|format(row.fc) }}</td>
+              <td><code>{{ row.error|scientific }}</code></td>
+              <td>
+                <span class="badge {{ 'badge-neg' if row.fa * row.fc < 0 else 'badge-pos' }}">
+                  {{ row.sign_test }}
+                </span>
+              </td>
+              <td><small>{{ row.action }}</small></td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Embed initial result JSON for client-side rendering on page load if present -->
+{% if result %}
+<script id="initialResultData" type="application/json">
+  {{ result|tojson }}
+</script>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/calculator.js') }}"></script>
+{% endblock %}

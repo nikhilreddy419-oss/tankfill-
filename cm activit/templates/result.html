@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Breadcrumb & Top Bar -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem;">
+        <a href="{{ url_for('home.index') }}">Home</a> &rsaquo;
+        <a href="{{ url_for('calculator.calculator') }}">Calculator</a> &rsaquo;
+        <span>Results</span>
+      </div>
+      <h1 style="font-size: 2.2rem;">Water Tank Filling Results</h1>
+      <p>Laboratory numerical analysis report using the Bisection Method.</p>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;" class="no-print">
+      <a href="{{ url_for('calculator.calculator') }}" class="btn btn-secondary btn-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>Recalculate / Edit Inputs</span>
+      </a>
+
+      <button type="button" class="btn btn-primary btn-sm" id="downloadPdfBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9V2h12v7"></path>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        <span>Download PDF Report</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Notification -->
+  <div class="toast toast-success" style="position: static; margin-bottom: 2rem; width: 100%;">
+    <span>✅</span>
+    <div>
+      <strong>Convergence Achieved:</strong>
+      {{ result.status_message }} (Benchmark: {{ result.execution_time_ms }} ms)
+    </div>
+  </div>
+
+  <!-- Key Metrics (KPI Cards) -->
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-success">
+      <div class="kpi-header">
+        <span class="kpi-title">Estimated Filling Time</span>
+        <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <div class="kpi-value" id="kpiRootTime">{{ "%.4f"|format(result.root_time) }} min</div>
+      <div class="kpi-subtext" id="kpiDuration">{{ result.duration.human_readable }}</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span class="kpi-title">Number of Iterations</span>
+        <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+      </div>
+      <div class="kpi-value" id="kpiIters">{{ result.total_iterations }}</div>
+      <div class="kpi-subtext" id="kpiTheoIters">Theoretical: {{ result.theoretical_iterations }} steps</div>
+    </div>
+
+    <div class="kpi-card kpi-warning">
+      <div class="kpi-header">
+        <span class="kpi-title">Final Error (\(\epsilon_k\))</span>
+        <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+      </div>
+      <div class="kpi-value" id="kpiError">{{ result.final_error|scientific }}</div>
+      <div class="kpi-subtext" id="kpiTolerance">Target: &lt; {{ result.tolerance|scientific }}</div>
+    </div>
+
+    <div class="kpi-card kpi-purple">
+      <div class="kpi-header">
+        <span class="kpi-title">Execution Time</span>
+        <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+      </div>
+      <div class="kpi-value" id="kpiExecTime">{{ result.execution_time_ms }} ms</div>
+      <div class="kpi-subtext">Single-precision clock</div>
+    </div>
+  </div>
+
+  <!-- Dashboard Overview: Tank Specs & Visualizer -->
+  <div class="dashboard-grid" style="margin-bottom: 2rem;">
+    <!-- Parameters Card -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Hydraulic Parameters Overview</h3>
+      </div>
+      <div class="card-body">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+          <tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 0.75rem 0; color: var(--text-muted);">Tank Total Capacity:</td>
+            <td style="padding: 0.75rem 0; text-align: right; font-weight: 700;">{{ result.tank_parameters.capacity }} Litres</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 0.75rem 0; color: var(--text-muted);">Initial Water Level:</td>
+            <td style="padding: 0.75rem 0; text-align: right; font-weight: 700;">{{ result.tank_parameters.current_level }} Litres ({{ result.tank_parameters.current_pct }}%)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 0.75rem 0; color: var(--text-muted);">Target Water Level:</td>
+            <td style="padding: 0.75rem 0; text-align: right; font-weight: 700; color: var(--success);">{{ result.tank_parameters.target_level }} Litres ({{ result.tank_parameters.target_pct }}%)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 0.75rem 0; color: var(--text-muted);">Water Inflow Rate:</td>
+            <td style="padding: 0.75rem 0; text-align: right; font-weight: 700;">{{ result.tank_parameters.inflow_rate }} L/min</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 0.75rem 0; color: var(--text-muted);">Drain / Leak Rate:</td>
+            <td style="padding: 0.75rem 0; text-align: right; font-weight: 700;">{{ result.tank_parameters.drain_rate }} L/min</td>
+          </tr>
+          <tr>
+            <td style="padding: 0.75rem 0; color: var(--text-muted);">Net Effective Filling Rate:</td>
+            <td style="padding: 0.75rem 0; text-align: right; font-weight: 700; color: var(--primary);">{{ result.tank_parameters.net_flow }} L/min</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2D Tank Visualizer -->
+    <div class="tank-visualizer-card">
+      <span style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary);">
+        Dynamic Water Tank Visualization
+      </span>
+
+      <div class="tank-container-wrapper">
+        <div class="tank-pipe-in"></div>
+        <div class="water-stream"></div>
+        <div class="tank-shell">
+          <div class="tank-water" id="tankWater" style="height: {{ result.tank_parameters.target_pct }}%;">
+            <div class="wave"></div>
+            <div class="wave back"></div>
+            <div class="bubble" style="left: 25%; width: 7px; height: 7px;"></div>
+            <div class="bubble" style="left: 60%; width: 5px; height: 5px; animation-delay: 1.2s;"></div>
+          </div>
+          <div class="tank-target-line" id="tankTargetLine" style="bottom: {{ result.tank_parameters.target_pct }}%;">
+            <span class="tank-target-badge" id="tankTargetBadge">Target: {{ result.tank_parameters.target_level }} L</span>
+          </div>
+        </div>
+        <div class="tank-scale">
+          <div class="scale-mark"><span>100%</span></div>
+          <div class="scale-mark"><span>75%</span></div>
+          <div class="scale-mark"><span>50%</span></div>
+          <div class="scale-mark"><span>25%</span></div>
+          <div class="scale-mark"><span>0%</span></div>
+        </div>
+      </div>
+
+      <div class="tank-readout">
+        <span class="tank-readout-value" id="tankPctReadout">{{ result.tank_parameters.target_pct }}%</span>
+        <span class="tank-readout-label" id="tankLitresReadout">{{ result.tank_parameters.target_level }} / {{ result.tank_parameters.capacity }} L</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mathematical Formulation Card -->
+  <div class="equation-box">
+    <div class="equation-title">Substituted Mathematical Root Equation</div>
+    <div class="equation-content">
+      \[ {{ result.equations.substituted_latex }} \]
+    </div>
+    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
+      Stopping condition satisfied: \( \epsilon_k < {{ result.tolerance|scientific }} \) in {{ result.total_iterations }} bisection intervals.
+    </div>
+  </div>
+
+  <!-- Scientific Charts Grid -->
+  <div class="charts-grid">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Water Level vs. Time</h3>
+      </div>
+      <div class="card-body">
+        <div class="chart-wrapper">
+          <canvas id="waterLevelChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Bisection Error Convergence</h3>
+      </div>
+      <div class="card-body">
+        <div class="chart-wrapper">
+          <canvas id="convergenceChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Iteration Table -->
+  <div class="card table-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h3 class="card-title">Bisection Step-by-Step Iteration Table</h3>
+      </div>
+      <span class="badge badge-pos">{{ result.iterations|length }} Iterations</span>
+    </div>
+
+    <div class="table-toolbar">
+      <div style="font-size: 0.85rem; color: var(--text-muted);">
+        Intermediate interval values, sign tests, and error bounds for every iteration step.
+      </div>
+      <input
+        type="search"
+        class="table-search-input"
+        id="tableSearchInput"
+        placeholder="Filter table rows..."
+        aria-label="Filter iteration table"
+      >
+    </div>
+
+    <div class="table-responsive">
+      <table class="bisection-table" id="iterationTable">
+        <thead>
+          <tr>
+            <th>Step (k)</th>
+            <th>Lower Bound \(a_k\)</th>
+            <th>Upper Bound \(b_k\)</th>
+            <th>Midpoint \(c_k\)</th>
+            <th>\(f(a_k)\)</th>
+            <th>\(f(b_k)\)</th>
+            <th>\(f(c_k)\)</th>
+            <th>Error \(\epsilon_k\)</th>
+            <th>Sign Test</th>
+            <th>Update Action</th>
+          </tr>
+        </thead>
+        <tbody id="iterationTableBody">
+          {% for row in result.iterations %}
+          <tr class="{{ 'row-converged' if loop.last else '' }}">
+            <td><strong>#{{ row.iteration }}</strong></td>
+            <td>{{ "%.6f"|format(row.a) }}</td>
+            <td>{{ "%.6f"|format(row.b) }}</td>
+            <td><strong class="text-primary">{{ "%.6f"|format(row.c) }}</strong></td>
+            <td>{{ "%.5f"|format(row.fa) }}</td>
+            <td>{{ "%.5f"|format(row.fb) }}</td>
+            <td>{{ "%.5f"|format(row.fc) }}</td>
+            <td><code>{{ row.error|scientific }}</code></td>
+            <td>
+              <span class="badge {{ 'badge-neg' if row.fa * row.fc < 0 else 'badge-pos' }}">
+                {{ row.sign_test }}
+              </span>
+            </td>
+            <td><small>{{ row.action }}</small></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Embed Result JSON -->
+<script id="initialResultData" type="application/json">
+  {{ result|tojson }}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/calculator.js') }}"></script>
+{% endblock %}

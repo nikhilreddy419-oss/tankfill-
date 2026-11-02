@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-pill">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+      <span>{{ COURSE_NAME }} • Mini Project</span>
+    </div>
+
+    <h1 class="hero-title">Water Tank Filling Time Calculator</h1>
+    <p class="hero-subtitle">
+      Compute precise filling time for industrial and domestic water reservoirs using the
+      <strong>Bisection Method</strong>. Experience real-time fluid animations, full iteration tracking,
+      and scientific convergence analysis.
+    </p>
+
+    <div class="hero-cta-group">
+      <a href="{{ url_for('calculator.calculator') }}" class="btn btn-primary" id="heroStartBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>Launch Tank Calculator</span>
+      </a>
+
+      <a href="{{ url_for('home.about') }}" class="btn btn-secondary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>Explore Mathematical Theory</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Formula Highlight Card -->
+  <div class="card" style="margin-top: 2rem; border-left: 4px solid var(--primary);">
+    <div class="card-body">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary);">
+            Mathematical Foundation
+          </span>
+          <h3 style="margin-top: 0.25rem;">The Tank Filling Root-Finding Problem</h3>
+        </div>
+        <a href="{{ url_for('home.about') }}" class="btn btn-outline btn-sm">Read Full Derivation &rarr;</a>
+      </div>
+      <p style="margin: 0.75rem 0 1rem;">
+        To calculate the time $t^*$ at which the water volume $V(t)$ reaches the specified target level $V_{\text{target}}$,
+        we formulate the continuous nonlinear objective function:
+      </p>
+      <div class="equation-box">
+        <div class="equation-title">Continuous Root Equation</div>
+        <div class="equation-content">
+          \[ f(t) = V(t) - V_{\text{target}} = 0 \quad \text{such that} \quad t \in [a, b], \; f(a) \cdot f(b) \le 0 \]
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features Grid -->
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon-box feature-icon-blue">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+          <path d="M2 12h20"></path>
+        </svg>
+      </div>
+      <h3 class="feature-title">Bolzano's Bisection Method</h3>
+      <p class="feature-desc">
+        Guarantees theoretical convergence by systematically halving the search interval $[a_k, b_k]$
+        around the target water level root with an error bound of $|b_k - a_k| / 2^k$.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon-box feature-icon-teal">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+        </svg>
+      </div>
+      <h3 class="feature-title">2D Fluid Visualizer</h3>
+      <p class="feature-desc">
+        Watch the water level rise in an animated fluid simulation complete with wave dynamics,
+        inflow pipe streams, bubbles, and real-time volumetric capacity readouts.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon-box feature-icon-purple">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      </div>
+      <h3 class="feature-title">Chart.js Convergence Analytics</h3>
+      <p class="feature-desc">
+        Interactively analyze the Water Level vs. Time trajectory alongside the logarithmic
+        error convergence curve comparing actual halving to theoretical decay limits.
+      </p>
+    </div>
+  </div>
+
+  <!-- Laboratory Workflow Process -->
+  <section style="margin-top: 4.5rem;">
+    <div style="text-align: center; margin-bottom: 2.5rem;">
+      <h2 style="font-size: 2rem;">Computational Workflow</h2>
+      <p style="max-width: 600px; margin: 0.5rem auto 0;">How TankFill transforms hydraulic inputs into certified numerical solutions</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.5rem;">
+      <div class="card" style="padding: 1.5rem; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">01</div>
+        <h4>Parameter Validation</h4>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Cross-validates tank capacity, initial water level, inflow rate, and target volume.</p>
+      </div>
+
+      <div class="card" style="padding: 1.5rem; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: var(--secondary); margin-bottom: 0.5rem;">02</div>
+        <h4>Root Bracketing</h4>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Establishes initial bracket $[a_0, b_0]$ satisfying the sign test $f(a) \cdot f(b) \le 0$.</p>
+      </div>
+
+      <div class="card" style="padding: 1.5rem; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: var(--accent); margin-bottom: 0.5rem;">03</div>
+        <h4>Iterative Halving</h4>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Calculates midpoint $c_k = \frac{a_k + b_k}{2}$ and shrinks the interval until $\epsilon_k < \text{tol}$.</p>
+      </div>
+
+      <div class="card" style="padding: 1.5rem; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: var(--success); margin-bottom: 0.5rem;">04</div>
+        <h4>Export &amp; Reporting</h4>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Inspect full iteration tables, download lab-ready PDF reports, or export raw CSV data.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
